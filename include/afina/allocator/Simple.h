@@ -1,8 +1,11 @@
 #ifndef AFINA_ALLOCATOR_SIMPLE_H
 #define AFINA_ALLOCATOR_SIMPLE_H
 
-#include <string>
+#include "Block.h"
 #include <cstddef>
+#include <cstring>
+#include <iostream>
+#include <string>
 
 namespace Afina {
 namespace Allocator {
@@ -56,6 +59,10 @@ public:
 private:
     void *_base;
     const size_t _base_len;
+    Block *_first_empty_block;
+    void *_descriptor;
+    void *_first_empty_descriptor;
+    size_t _number_descriptor;
 };
 
 } // namespace Allocator
