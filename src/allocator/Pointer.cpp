@@ -6,10 +6,7 @@ namespace Allocator {
 Pointer::Pointer() {}
 Pointer::Pointer(void **other) : _pointer(other) {}
 Pointer::Pointer(const Pointer &other) : _pointer(other._pointer) {}
-Pointer::Pointer(Pointer &&other) {
-    _pointer = other._pointer;
-    other._pointer = nullptr;
-}
+Pointer::Pointer(Pointer &&other) : _pointer(other._pointer) { other._pointer = nullptr; }
 
 Pointer &Pointer::operator=(const Pointer &other) {
     _pointer = other._pointer;

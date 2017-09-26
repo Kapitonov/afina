@@ -63,6 +63,9 @@ private:
     void *_descriptor;
     void *_first_empty_descriptor;
     size_t _number_descriptor;
+
+    void _find_empty_descriptor();
+    void _merge_blocks(Block*);
 };
 
 } // namespace Allocator
