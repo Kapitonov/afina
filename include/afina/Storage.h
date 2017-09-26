@@ -84,9 +84,6 @@ public:
      * @param value output parameter to copy value to
      */
     virtual bool Get(const std::string &key, std::string &value) const = 0;
-
-private:
-    size_t _max_sise;
 };
 
 } // namespace Afina
