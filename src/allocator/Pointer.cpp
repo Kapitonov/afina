@@ -3,7 +3,7 @@
 namespace Afina {
 namespace Allocator {
 
-Pointer::Pointer() {}
+Pointer::Pointer():_pointer(nullptr) {}
 Pointer::Pointer(void **other) : _pointer(other) {}
 Pointer::Pointer(const Pointer &other) : _pointer(other._pointer) {}
 Pointer::Pointer(Pointer &&other) : _pointer(other._pointer) { other._pointer = nullptr; }
