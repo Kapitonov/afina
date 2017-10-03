@@ -1,10 +1,13 @@
 #include "MapBasedGlobalLockImpl.h"
 
+#include <mutex>
+
 namespace Afina {
 namespace Backend {
 
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::Put(const std::string &key, const std::string &value) {
+    std::unique_lock<std::mutex> guard(_lock);
     try {
         if (_backend.find(key) == _backend.end()) {
             _lru.push_back(key);
@@ -18,10 +21,12 @@ bool MapBasedGlobalLockImpl::Put(const std::string &key, const std::string &valu
     } catch (...) {
         return false;
     }
+    return false;
 }
 
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::PutIfAbsent(const std::string &key, const std::string &value) {
+std::unique_lock<std::mutex> guard(_lock);
     if (_backend.find(key) == _backend.end()) {
         _lru.push_back(key);
         _backend.at(key) = value;
@@ -36,6 +41,7 @@ bool MapBasedGlobalLockImpl::PutIfAbsent(const std::string &key, const std::stri
 
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::Set(const std::string &key, const std::string &value) {
+    std::unique_lock<std::mutex> guard(_lock);
     if (_backend.find(key) != _backend.end()) {
         _backend.at(key) = value;
         return true;
@@ -45,6 +51,7 @@ bool MapBasedGlobalLockImpl::Set(const std::string &key, const std::string &valu
 
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::Delete(const std::string &key) {
+    std::unique_lock<std::mutex> guard(_lock);
     if (_backend.find(key) != _backend.end()) {
         _backend.erase(key);
         std::list<std::string>::const_iterator it = std::find(_lru.begin(), _lru.end(), key);
@@ -56,6 +63,7 @@ bool MapBasedGlobalLockImpl::Delete(const std::string &key) {
 
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::Get(const std::string &key, std::string &value) const {
+    std::unique_lock<std::mutex> guard(*const_cast<std::mutex *>(&_lock));
     if (_backend.find(key) != _backend.end()) {
         value = _backend.at(key);
         return true;
