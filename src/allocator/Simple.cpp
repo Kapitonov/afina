@@ -79,11 +79,11 @@ void Simple::realloc(Pointer &p, size_t N) {
         size_t n;
         n = *((size_t *)p.get() - 1);
         if (n >= N) {
-            if (N < (n + sizeof(Block))) {
+            if ((n - N) < (sizeof(Block))) {
                 return;
             }
-            Block *new_block = (Block *)((char *)p.get() + N - sizeof(size_t));
-            new_block->size = n - N;
+            Block *new_block = (Block *)((char *)p.get() + N);
+            new_block->size = n - N - sizeof(size_t);
             Block *first = _first_empty_block, *second = nullptr;
             while (first && (first < p.get())) {
                 second = first;
