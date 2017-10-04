@@ -69,14 +69,6 @@ int main(int argc, char **argv) {
         pid_t pid;
         pid = fork();
         if (!pid) {
-            if (options.count("pid") > 0) {
-                std::string file_out_pid;
-                file_out_pid = options["pid"].as<std::string>();
-                std::ofstream pid_out;
-                pid_out.open(file_out_pid);
-                pid_out << getpid();
-                pid_out.close();
-            }
 
             setsid();
             close(STDIN_FILENO);
@@ -86,6 +78,14 @@ int main(int argc, char **argv) {
         } else {
             return 0;
         }
+    }
+    if (options.count("pid") > 0) {
+        std::string file_out_pid;
+        file_out_pid = options["pid"].as<std::string>();
+        std::ofstream pid_out;
+        pid_out.open(file_out_pid);
+        pid_out << getpid();
+        pid_out.close();
     }
     // Start boot sequence
     Application app;
