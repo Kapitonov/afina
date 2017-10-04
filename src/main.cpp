@@ -79,7 +79,6 @@ int main(int argc, char **argv) {
                 pid_out.open(file_out_pid);
                 pid_out << getpid();
                 pid_out.close();
-                std::cout << getpid() << std::endl;
             }
             close(STDIN_FILENO);
             close(STDOUT_FILENO);
