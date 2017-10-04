@@ -5,12 +5,12 @@
 
 #include <cxxopts.hpp>
 
+#include <fstream>
 #include <unistd.h>
 
 #include <afina/Storage.h>
 #include <afina/Version.h>
 #include <afina/network/Server.h>
-#include <fstream>
 
 #include "network/blocking/ServerImpl.h"
 #include "network/uv/ServerImpl.h"
@@ -65,16 +65,14 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-
-
-    if (options.count("daemon") > 0){
+    if (options.count("daemon") > 0) {
         pid_t pid;
         pid = fork();
-        if(!pid){
+        if (!pid) {
 
             umask(0);
             setsid();
-            if (options.count("pid") > 0){
+            if (options.count("pid") > 0) {
                 std::string file_out_pid;
                 file_out_pid = options["pid"].as<std::string>();
                 std::ofstream pid_out;
@@ -87,8 +85,7 @@ int main(int argc, char **argv) {
             close(STDOUT_FILENO);
             close(STDERR_FILENO);
 
-
-        }else{
+        } else {
             return 0;
         }
     }
