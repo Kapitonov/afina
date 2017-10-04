@@ -8,35 +8,32 @@ namespace Backend {
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::Put(const std::string &key, const std::string &value) {
     std::unique_lock<std::mutex> guard(_lock);
-    try {
-        if (_backend.find(key) == _backend.end()) {
-            _lru.push_back(key);
-            if (_lru.size() > _max_size) {
-                _backend.erase(_lru.front());
-                _lru.pop_front();
-            }
+    if (_backend.find(key) == _backend.end()) {
+        _lru.push_front(key);
+        if (_lru.size() > _max_size) {
+            _backend.erase(_lru.back());
+            _lru.pop_back();
         }
-        _backend[key] = value;
-        return true;
-    } catch (...) {
-        return false;
     }
-    return false;
+    _backend[key] = value;
+    _lru.remove(key);
+    _lru.push_front(key);
+    return true;
 }
 
 // See MapBasedGlobalLockImpl.h
 bool MapBasedGlobalLockImpl::PutIfAbsent(const std::string &key, const std::string &value) {
-std::unique_lock<std::mutex> guard(_lock);
-    if (_backend.find(key) == _backend.end()) {
-        _lru.push_back(key);
-        _backend.at(key) = value;
-        if (_lru.size() > _max_size) {
-            _backend.erase(_lru.front());
-            _lru.pop_front();
-        }
-        return true;
+    std::unique_lock<std::mutex> guard(_lock);
+    if (_backend.find(key) != _backend.end()) {
+        return false;
     }
-    return false;
+    _lru.push_front(key);
+    _backend.at(key) = value;
+    if (_lru.size() > _max_size) {
+        _backend.erase(_lru.front());
+        _lru.pop_back();
+    }
+    return true;
 }
 
 // See MapBasedGlobalLockImpl.h
@@ -44,6 +41,8 @@ bool MapBasedGlobalLockImpl::Set(const std::string &key, const std::string &valu
     std::unique_lock<std::mutex> guard(_lock);
     if (_backend.find(key) != _backend.end()) {
         _backend.at(key) = value;
+        _lru.remove(key);
+        _lru.push_front(key);
         return true;
     }
     return false;
@@ -54,8 +53,7 @@ bool MapBasedGlobalLockImpl::Delete(const std::string &key) {
     std::unique_lock<std::mutex> guard(_lock);
     if (_backend.find(key) != _backend.end()) {
         _backend.erase(key);
-        std::list<std::string>::const_iterator it = std::find(_lru.begin(), _lru.end(), key);
-        _lru.erase(it);
+        _lru.remove(key);
         return true;
     }
     return false;

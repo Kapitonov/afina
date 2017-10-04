@@ -69,9 +69,6 @@ int main(int argc, char **argv) {
         pid_t pid;
         pid = fork();
         if (!pid) {
-
-            umask(0);
-            setsid();
             if (options.count("pid") > 0) {
                 std::string file_out_pid;
                 file_out_pid = options["pid"].as<std::string>();
@@ -80,6 +77,8 @@ int main(int argc, char **argv) {
                 pid_out << getpid();
                 pid_out.close();
             }
+
+            setsid();
             close(STDIN_FILENO);
             close(STDOUT_FILENO);
             close(STDERR_FILENO);
