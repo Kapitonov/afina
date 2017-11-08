@@ -102,6 +102,7 @@ void ServerImpl::Start(uint32_t port, uint16_t n_workers) {
 void ServerImpl::Stop() {
     std::cout << "network debug: " << __PRETTY_FUNCTION__ << std::endl;
     running.store(false);
+	shutdown(server_socket, SHUT_RDWR);
 }
 
 // See Server.h
@@ -135,7 +136,7 @@ void ServerImpl::RunAcceptor() {
     // - Family: IPv4
     // - Type: Full-duplex stream (reliable)
     // - Protocol: TCP
-    int server_socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    server_socket = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (server_socket == -1) {
         throw std::runtime_error("Failed to open socket");
     }
@@ -180,7 +181,11 @@ void ServerImpl::RunAcceptor() {
         // the incoming connection arrives
         if ((client_socket = accept(server_socket, (struct sockaddr *)&client_addr, &sinSize)) == -1) {
             close(server_socket);
-            throw std::runtime_error("Socket accept() failed");
+			if(running.load()) {
+				throw std::runtime_error("Socket accept() failed");
+			}else{
+				break;
+			}
         }
 
         if (connections.size() == max_workers) {
@@ -192,6 +197,7 @@ void ServerImpl::RunAcceptor() {
             if (pthread_create(&temp_pthread, NULL, ServerImpl::RunConnectionThread, &temp) < 0) {
                 throw std::runtime_error("Could not create server thread");
             }
+			pthread_detach(temp_pthread);
         }
         std::cout << running.load() << std::endl;
     }

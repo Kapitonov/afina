@@ -28,7 +28,7 @@ bool MapBasedGlobalLockImpl::PutIfAbsent(const std::string &key, const std::stri
         return false;
     }
     _lru.push_front(key);
-    _backend.at(key) = value;
+    _backend[key] = value;
     if (_lru.size() > _max_size) {
         _backend.erase(_lru.front());
         _lru.pop_back();
