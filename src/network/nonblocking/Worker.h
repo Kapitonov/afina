@@ -1,6 +1,7 @@
 #ifndef AFINA_NETWORK_NONBLOCKING_WORKER_H
 #define AFINA_NETWORK_NONBLOCKING_WORKER_H
 
+#include <atomic>
 #include <memory>
 #include <pthread.h>
 
@@ -43,14 +44,22 @@ public:
      */
     void Join();
 
+    Worker(Worker &&other);
+
 protected:
     /**
      * Method executing by background thread
      */
-    void OnRun(void *args);
+    static void *OnRun(void *args);
 
 private:
-    pthread_t thread;
+    std::atomic<bool> _running;
+
+    pthread_t _thread;
+
+    std::shared_ptr<Afina::Storage> Storage;
+
+    int server_cock;
 };
 
 } // namespace NonBlocking

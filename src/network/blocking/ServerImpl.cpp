@@ -227,7 +227,7 @@ void ServerImpl::RunConnection(int socket) {
     size_t parsed = 0;
     uint32_t size_value;
     std::unique_ptr<Execute::Command> command;
-
+	std::cout << "Check\n";
     // Thread just spawn, register itself as a connection
     {
         std::unique_lock<std::mutex> __lock(connections_mutex);
@@ -236,15 +236,23 @@ void ServerImpl::RunConnection(int socket) {
 
     // TODO: All connection work is here
     while (running.load() || (!read_msg.empty())) {
-        while ((count = read(socket, buf, buf_size)) > 0) {
+        if ((count = read(socket, buf, buf_size)) > 0) {
             read_msg.append(buf, count);
         }
-        //		std::cout << "count: " << read_msg.size() << std::endl;
-        if (read_msg.empty() && (!flag_parse)) {
+//		if(read_msg == "stats\r\n"){
+//			result = "0\r\n";
+//			if (send(socket, result.data(), result.size(), 0) <= 0) {
+//				throw std::runtime_error("Socket send() failed");
+//			}
+//			flag_parse = false;
+//			flag_build = false;
+//			read_msg.erase(0, 7);
+//		}
+        if (read_msg.empty() && (!flag_parse) &&(!flag_build)) {
             break;
         }
-
-        if (!flag_parse) {
+		if (!flag_parse) {
+			parsed = 0;
 			try{
 				flag_parse = parser.Parse(read_msg, parsed);
 			}  catch (const std::runtime_error &error) {
@@ -255,16 +263,17 @@ void ServerImpl::RunConnection(int socket) {
 				break;
 			}
             read_msg.erase(0, parsed);
-            parsed = 0;
-        } else if (!flag_build) {
+        }
+
+		if (flag_parse && !flag_build) {
             command = parser.Build(size_value);
             flag_build = true;
-        } else if ((read_msg.size() >= size_value) && flag_build) {
+        }
+		if ((read_msg.size() >= size_value) && flag_build) {
             result.clear();
             (*command).Execute(*pStorage, read_msg.substr(0, size_value), result);
             result += "\r\n";
             if (send(socket, result.data(), result.size(), 0) <= 0) {
-                //                    close(socket);
                 throw std::runtime_error("Socket send() failed");
             }
             if (size_value > 0) {
