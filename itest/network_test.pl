@@ -145,29 +145,26 @@ afina_test(
 	0
 );
 
-TODO: {
-	local $TODO = "Replace command isn't yet implemented in the parser";
-
-	afina_test(
-		"replace test_ 0 0 3\r\nwtf\r\n",
-		"NOT_STORED\r\n",
-		"Don't replace non-existent key",
-		1
-	);
-
-	afina_test(
-		"replace test 0 0 3\r\nzzz\r\n",
-		"STORED\r\n",
-		"Replace an existent key",
-		1
-	);
-
-	afina_test(
-		"get test\r\n",
-		"VALUE test 0 3\r\nzzz\r\nEND\r\n",
-		"Verify replace",
-		0
-	);
+TODO: { 
+  local $TODO = "Replace command isn't yet implemented in the parser"; 
+ 
+  afina_test( 
+    "replace test_ 0 0 3\r\nwtf\r\n", 
+    "NOT_STORED\r\n", 
+    "Don't replace non-existent key" 
+  ); 
+ 
+  afina_test( 
+    "replace test 0 0 3\r\nzzz\r\n", 
+    "STORED\r\n", 
+    "Replace an existent key" 
+  ); 
+ 
+  afina_test( 
+    "get test\r\n", 
+    "VALUE test 0 3\r\nzzz\r\nEND\r\n", 
+    "Verify replace" 
+  ); 
 }
 
 TODO: {
