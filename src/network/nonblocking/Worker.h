@@ -30,6 +30,8 @@ public:
      */
     void Start(int server_socket);
 
+	void Start(int server_socket, int input, int output);
+
     /**
      * Signal background thread to stop. After that signal thread must stop to
      * accept new connections and must stop read new commands from existing. Once
@@ -59,7 +61,11 @@ private:
 
     std::shared_ptr<Afina::Storage> Storage;
 
-    int server_cock;
+    int server_sock;
+
+	int input_fifo;
+
+	int output_fifo;
 };
 
 } // namespace NonBlocking

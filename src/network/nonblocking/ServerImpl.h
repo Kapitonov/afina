@@ -30,6 +30,8 @@ public:
 
     // See Server.h
     void Join() override;
+	
+	void Set_fifo(int input, int output);
 
 private:
     // Port to listen for new connections, permits access only from
@@ -37,8 +39,9 @@ private:
     // Read-only
     uint32_t listen_port;
 
-	//std::atomic<bool> running;
-
+	int input_fifo;
+	int output_fifo;
+	
     // Thread that is accepting new connections
     std::vector<Worker> workers;
 };

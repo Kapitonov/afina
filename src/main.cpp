@@ -8,6 +8,9 @@
 #include <fstream>
 #include <unistd.h>
 
+#include <sys/epoll.h>
+#include <sys/signalfd.h>
+
 #include <afina/Storage.h>
 #include <afina/Version.h>
 #include <afina/network/Server.h>
@@ -36,6 +39,31 @@ void timer_handler(uv_timer_t *handle) {
     std::cout << "Start passive metrics collection" << std::endl;
 }
 
+void run_event_loop(int efd) {
+    int maxevents = 10;
+    std::vector<struct epoll_event> events(maxevents);
+    bool run = true;
+    int n;
+    struct signalfd_siginfo sig_info;
+    while (run) {
+        n = epoll_wait(efd, events.data(), maxevents, 100);
+        if (n == -1) {
+            throw std::runtime_error("epoll_wait() error");
+        }
+        for (int i = 0; i < n; ++i) {
+            ssize_t read_count = read(events[i].data.fd, &sig_info, sizeof(sig_info));
+            if (read_count == sizeof(sig_info) &&
+                (sig_info.ssi_signo == SIGINT || sig_info.ssi_signo == SIGTERM || sig_info.ssi_signo == SIGKILL)) {
+                close(events[i].data.fd);
+                run = false;
+                break;
+            } else {
+                throw std::runtime_error("Non correct signal");
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     // Build version
     // TODO: move into Version.h as a function
@@ -55,6 +83,8 @@ int main(int argc, char **argv) {
         options.add_options()("h,help", "Print usage info");
         options.add_options()("p,pid", "Output pid", cxxopts::value<std::string>());
         options.add_options()("d,daemon", "Demon");
+        options.add_options()("r", "input FIFO", cxxopts::value<std::string>());
+        options.add_options()("w", "output FIFO", cxxopts::value<std::string>());
         options.parse(argc, argv);
 
         if (options.count("help") > 0) {
@@ -99,9 +129,35 @@ int main(int argc, char **argv) {
 
     if (storage_type == "map_global") {
         app.storage = std::make_shared<Afina::Backend::MapBasedGlobalLockImpl>();
+//    } else if (storage_type == "striped") {
+//        app.storage = std::make_shared<Afina::Backend::Striped_storage>(10000);
     } else {
         throw std::runtime_error("Unknown storage type");
     }
+
+	int input_fifo = -1;
+	int output_fifo = -1;
+	if(options.count("r") > 0){
+		std::string name_input_fifo = options["r"].as<std::string>();
+		unlink(name_input_fifo.data());
+		if(mkfifo(name_input_fifo.data(), S_IFIFO | S_IRUSR) < 0){
+			throw std::runtime_error("FIFO make failed");
+		}
+		if((input_fifo = open(name_input_fifo.data(), O_NONBLOCK | O_RDONLY)) < 0){
+			throw std::runtime_error("FIFO open failed");
+		}
+	}
+
+	if(options.count("w") > 0){
+		std::string name_output_fifo = options["w"].as<std::string>();
+		unlink(name_output_fifo.data());
+		if(mkfifo(name_output_fifo.data(), S_IFIFO | S_IWUSR) < 0){
+			throw std::runtime_error("FIFO make failed");
+		}
+		if((output_fifo = open(name_output_fifo.data(), O_NONBLOCK | O_WRONLY)) < 0){
+			throw std::runtime_error("FIFO open failed");
+		}
+	}
 
     // Build  & start network layer
     std::string network_type = "uv";
@@ -122,18 +178,31 @@ int main(int argc, char **argv) {
     // Init local loop. It will react to signals and performs some metrics collections. Each
     // subsystem is able to push metrics actively, but some metrics could be collected only
     // by polling, so loop here will does that work
-    uv_loop_t loop;
-    uv_loop_init(&loop);
 
-    uv_signal_t sig;
-    uv_signal_init(&loop, &sig);
-    uv_signal_start(&sig, signal_handler, SIGTERM | SIGKILL);
-    sig.data = &app;
-
-    uv_timer_t timer;
-    uv_timer_init(&loop, &timer);
-    timer.data = &app;
-    uv_timer_start(&timer, timer_handler, 0, 5000);
+    int efd;
+    int signal_fd;
+    epoll_event event;
+    int n;
+    if ((efd = epoll_create1(0)) < 0) {
+        std::cout << "efd = " << efd << std::endl;
+        throw std::runtime_error("epoll create error");
+    }
+    sigset_t mask, orig_mask;
+    sigemptyset(&mask);
+    sigaddset(&mask, SIGTERM);
+    sigaddset(&mask, SIGINT);
+    sigaddset(&mask, SIGKILL);
+    if (sigprocmask(SIG_BLOCK, &mask, &orig_mask) < 0) {
+        throw std::runtime_error("sigprocmask error");
+    }
+    if ((signal_fd = signalfd(-1, &mask, SFD_NONBLOCK)) < 0) {
+        throw std::runtime_error("signalfd error");
+    }
+    event.data.fd = signal_fd;
+    event.events = EPOLLIN;
+    if (epoll_ctl(efd, EPOLL_CTL_ADD, signal_fd, &event) < 0) {
+        throw std::runtime_error("epoll_ctl() error");
+    }
 
     // Start services
     try {
@@ -142,13 +211,15 @@ int main(int argc, char **argv) {
 
         // Freeze current thread and process events
         std::cout << "Application started" << std::endl;
-        uv_run(&loop, UV_RUN_DEFAULT);
-
+        //        uv_run(&loop, UV_RUN_DEFAULT);
+        run_event_loop(efd);
         // Stop services
         app.server->Stop();
         app.server->Join();
         app.storage->Stop();
 
+        close(efd);
+        close(signal_fd);
         std::cout << "Application stopped" << std::endl;
     } catch (std::exception &e) {
         std::cerr << "Fatal error" << e.what() << std::endl;
