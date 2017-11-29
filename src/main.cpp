@@ -187,12 +187,12 @@ int main(int argc, char **argv) {
         std::cout << "efd = " << efd << std::endl;
         throw std::runtime_error("epoll create error");
     }
-    sigset_t mask, orig_mask;
+    sigset_t mask;
     sigemptyset(&mask);
     sigaddset(&mask, SIGTERM);
     sigaddset(&mask, SIGINT);
     sigaddset(&mask, SIGKILL);
-    if (sigprocmask(SIG_BLOCK, &mask, &orig_mask) < 0) {
+    if (sigprocmask(SIG_BLOCK, &mask, 0) < 0) {
         throw std::runtime_error("sigprocmask error");
     }
     if ((signal_fd = signalfd(-1, &mask, SFD_NONBLOCK)) < 0) {
@@ -209,9 +209,7 @@ int main(int argc, char **argv) {
         app.storage->Start();
         app.server->Start(8080);
 
-        // Freeze current thread and process events
         std::cout << "Application started" << std::endl;
-        //        uv_run(&loop, UV_RUN_DEFAULT);
         run_event_loop(efd);
         // Stop services
         app.server->Stop();
