@@ -46,7 +46,7 @@ public:
      */
     void Join();
 
-    Worker(Worker &&other);
+    Worker(const Worker &other);
 
 protected:
     /**

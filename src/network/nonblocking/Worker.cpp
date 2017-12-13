@@ -21,7 +21,7 @@ namespace NonBlocking {
 
 class Connection_info {
 public:
-    Connection_info() : flag_parse(false), reading(true) {}
+    Connection_info() : flag_parse(false), reading(true), size_value(0) {}
     Connection_info(const Connection_info &) = default;
     Connection_info(Connection_info &&) = default;
 
@@ -44,9 +44,9 @@ Worker::Worker(std::shared_ptr<Afina::Storage> ps) : _running(false), Storage(ps
 // See Worker.h
 Worker::~Worker() {}
 
-Worker::Worker(Worker &&other)
-    : _running(other._running.load()), _thread(std::move(other._thread)), Storage(std::move(other.Storage)),
-      server_sock(std::move(other.server_sock)) {}
+Worker::Worker(const Worker &other)
+    : _running(other._running.load()), _thread(other._thread), Storage(other.Storage),
+      server_sock(other.server_sock) {}
 
 // See Worker.h
 void Worker::Start(int server_socket) {
@@ -98,8 +98,8 @@ void Worker::Run() {
     struct epoll_event event;
     size_t maxevents = 10;
     std::vector<struct epoll_event> events(maxevents);
-    ssize_t count = 1, count_write, size_buf;
-    size_t parsed;
+    ssize_t count, count_write, count_read, size_buf;
+    size_t parsed = 0;
     char buf[4096];
     std::string result;
     std::string temp;
@@ -185,8 +185,6 @@ void Worker::Run() {
                 memcpy(buf, conn->buf.data(), (size_t)size_buf);
                 if (events[i].events & EPOLLIN) {
                     do {
-                        std::cout << "size_buf: " << size_buf << "; parsed: " << parsed
-                                  << "; reading: " << conn->reading << std::endl;
                         try {
                             if (!conn->flag_parse) {
                                 while (!conn->flag_parse && size_buf > 0 && parsed > 0) {
@@ -221,15 +219,15 @@ void Worker::Run() {
                             conn->command = conn->parser.Build(conn->size_value);
                             conn->value.clear();
                             if (conn->size_value == 0) {
-                            } else if (size_buf < (conn->size_value + 2)) {
+                            } else if (size_buf + conn->value.size() < (conn->size_value + 2)) {
                                 conn->value.append(buf, size_t(size_buf));
                                 size_buf = 0;
-                                count_write = conn->size_value + 2 - conn->value.size();
-                                while (count_write > 0) {
-                                    if (count_write >= sizeof buf) {
-                                        count_write = sizeof buf;
+                                count_read = conn->size_value + 2 - conn->value.size();
+                                while (count_read > 0) {
+                                    if (count_read >= sizeof buf) {
+                                        count_read = sizeof buf;
                                     }
-                                    if ((count = read(fd, buf, count_write)) > 0) {
+                                    if ((count = read(fd, buf, count_read)) > 0) {
                                         conn->value.append(buf, size_t(count));
                                     } else {
                                         if (count == 0) {
@@ -239,10 +237,10 @@ void Worker::Run() {
                                         }
                                         break;
                                     }
-                                    count_write = conn->size_value + 2 - conn->value.size();
+                                    count_read = conn->size_value + 2 - conn->value.size();
                                 }
                             } else {
-                                conn->value.append(buf, conn->size_value);
+                                conn->value.append(buf, conn->size_value - conn->value.size());
                                 memcpy(buf, buf + conn->size_value + 2, size_buf - size_t(conn->size_value) - 2);
                                 size_buf -= conn->size_value + 2;
                             }
@@ -258,6 +256,7 @@ void Worker::Run() {
                         }
                     } while ((size_buf > 0 && parsed > 0));
                 }
+
                 if (events[i].events & EPOLLOUT) {
                     while (!conn->result.empty()) {
                         result = conn->result.front();
