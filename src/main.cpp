@@ -50,13 +50,12 @@ void run_event_loop(int efd) {
         if (n == -1) {
             throw std::runtime_error("epoll_wait() error");
         }
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < n && run; ++i) {
             ssize_t read_count = read(events[i].data.fd, &sig_info, sizeof(sig_info));
             if (read_count == sizeof(sig_info) &&
                 (sig_info.ssi_signo == SIGINT || sig_info.ssi_signo == SIGTERM || sig_info.ssi_signo == SIGKILL)) {
                 close(events[i].data.fd);
                 run = false;
-                break;
             } else {
                 throw std::runtime_error("Non correct signal");
             }
@@ -143,7 +142,7 @@ int main(int argc, char **argv) {
 		if(mkfifo(name_input_fifo.data(), S_IFIFO | S_IRUSR) < 0){
 			throw std::runtime_error("FIFO make failed");
 		}
-		if((input_fifo = open(name_input_fifo.data(), O_NONBLOCK | O_RDONLY)) < 0){
+		if((input_fifo = open(name_input_fifo.data(), O_NONBLOCK | O_RDWR)) < 0){
 			throw std::runtime_error("FIFO open failed");
 		}
 	}
@@ -154,7 +153,7 @@ int main(int argc, char **argv) {
 		if(mkfifo(name_output_fifo.data(), S_IFIFO | S_IWUSR) < 0){
 			throw std::runtime_error("FIFO make failed");
 		}
-		if((output_fifo = open(name_output_fifo.data(), O_NONBLOCK | O_WRONLY)) < 0){
+		if((output_fifo = open(name_output_fifo.data(), O_NONBLOCK | O_RDWR)) < 0){
 			throw std::runtime_error("FIFO open failed");
 		}
 	}
@@ -191,7 +190,7 @@ int main(int argc, char **argv) {
     sigemptyset(&mask);
     sigaddset(&mask, SIGTERM);
     sigaddset(&mask, SIGINT);
-    sigaddset(&mask, SIGKILL);
+//    sigaddset(&mask, SIGKILL);
     if (sigprocmask(SIG_BLOCK, &mask, 0) < 0) {
         throw std::runtime_error("sigprocmask error");
     }

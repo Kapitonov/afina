@@ -54,6 +54,8 @@ protected:
      */
     static void *OnRun(void *args);
 
+    void Run();
+
 private:
     std::atomic<bool> _running;
 
