@@ -31,6 +31,8 @@ public:
     // See Server.h
     void Join() override;
 
+    void Set_fifo(int input, int output) override {};
+
 protected:
     /**
      * List of all workers created for this instance of server

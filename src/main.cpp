@@ -139,22 +139,22 @@ int main(int argc, char **argv) {
 	if(options.count("r") > 0){
 		std::string name_input_fifo = options["r"].as<std::string>();
 		unlink(name_input_fifo.data());
-		if(mkfifo(name_input_fifo.data(), S_IFIFO | S_IRUSR) < 0){
-			throw std::runtime_error("FIFO make failed");
+		if(mkfifo(name_input_fifo.data(), S_IFIFO | S_IRUSR | S_IWUSR) < 0){
+			throw std::runtime_error("FIFO r make failed");
 		}
 		if((input_fifo = open(name_input_fifo.data(), O_NONBLOCK | O_RDWR)) < 0){
-			throw std::runtime_error("FIFO open failed");
+			throw std::runtime_error("FIFO r open failed");
 		}
 	}
 
 	if(options.count("w") > 0){
 		std::string name_output_fifo = options["w"].as<std::string>();
 		unlink(name_output_fifo.data());
-		if(mkfifo(name_output_fifo.data(), S_IFIFO | S_IWUSR) < 0){
-			throw std::runtime_error("FIFO make failed");
+		if(mkfifo(name_output_fifo.data(), S_IFIFO | S_IRUSR | S_IWUSR) < 0){
+			throw std::runtime_error("FIFO r make failed");
 		}
 		if((output_fifo = open(name_output_fifo.data(), O_NONBLOCK | O_RDWR)) < 0){
-			throw std::runtime_error("FIFO open failed");
+			throw std::runtime_error("FIFO w open failed");
 		}
 	}
 
@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
     } else {
         throw std::runtime_error("Unknown network type");
     }
-
+    app.server->Set_fifo(input_fifo, output_fifo);
     // Init local loop. It will react to signals and performs some metrics collections. Each
     // subsystem is able to push metrics actively, but some metrics could be collected only
     // by polling, so loop here will does that work

@@ -31,7 +31,7 @@ public:
     // See Server.h
     void Join() override;
 	
-	void Set_fifo(int input, int output);
+	void Set_fifo(int input, int output) override ;
 
 private:
     // Port to listen for new connections, permits access only from

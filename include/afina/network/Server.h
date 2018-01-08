@@ -17,6 +17,7 @@ public:
     Server(std::shared_ptr<Afina::Storage> ps) : pStorage(ps) {}
     virtual ~Server() {}
 
+    virtual void Set_fifo(int inpit, int output) = 0;
     /**
      * Starts network service. After method returns process should
      * listen on the given interface/port pair to process  incomming

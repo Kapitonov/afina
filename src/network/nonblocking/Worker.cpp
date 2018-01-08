@@ -115,8 +115,9 @@ void Worker::Run() {
     event.events = EPOLLIN | EPOLLEXCLUSIVE;
     s = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, server_sock, &event);
     if (input_fifo > 0) {
+        std::cout << "inp_fifo\n";
         event.data.fd = input_fifo;
-        event.events = EPOLLIN | EPOLLET;
+        event.events = EPOLLIN;
         s = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, input_fifo, &event);
         if (s == -1) {
             perror("epoll_ctl");
@@ -126,8 +127,9 @@ void Worker::Run() {
     }
 
     if (output_fifo > 0) {
+        std::cout << "out_fifo\n";
         event.data.fd = output_fifo;
-        event.events = EPOLLOUT | EPOLLET;
+        event.events = EPOLLOUT;
         s = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, output_fifo, &event);
         if (s == -1) {
             perror("epoll_ctl");
@@ -135,7 +137,7 @@ void Worker::Run() {
         }
     }
     while (_running.load()) {
-        n = epoll_wait(epoll_fd, events.data(), maxevents, 100);
+        n = epoll_wait(epoll_fd, events.data(), maxevents, 10000);
         for (i = 0; i < n; i++) {
             if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) ||
                 !((events[i].events & EPOLLIN) || (events[i].events & EPOLLOUT))) {
@@ -181,6 +183,9 @@ void Worker::Run() {
             } else {
                 fd = events[i].data.fd;
                 conn = &(connections[fd]);
+                if(fd == output_fifo){
+                    conn = &(connections[input_fifo]);
+                }
                 size_buf = conn->buf.size();
                 memcpy(buf, conn->buf.data(), (size_t)size_buf);
                 if (events[i].events & EPOLLIN) {
@@ -212,7 +217,7 @@ void Worker::Run() {
                             conn->result.push(result);
                             result.clear();
                             conn->parser.Reset();
-                            conn->reading = false;
+//                            conn->reading = false;
                             break;
                         }
                         if (conn->flag_parse) {
@@ -272,7 +277,8 @@ void Worker::Run() {
                         }
                     }
                 }
-                if ((!conn->reading) && conn->result.empty()) {
+
+                if ((!conn->reading) && (conn->result.empty())) {
                     close(events[i].data.fd);
                     connections.erase(fd);
                 }
