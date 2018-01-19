@@ -58,7 +58,7 @@ Executor::~Executor() {
     {
         std::lock_guard<std::mutex> lock(mutex);
         if(state == State::kRun){
-            state = State::kStopping;
+            state = State::kStopped;
         }
     }
     empty_condition.notify_all();
