@@ -10,10 +10,10 @@ void perform(Executor *executor) {
     while (true) {
         lock.lock();
         {
-            executor->empty_condition.wait(lock, [executor] {
-                        return !(executor->tasks.empty() && executor->state == Executor::State::kRun); });
+            executor->empty_condition.wait(
+                lock, [executor] { return !(executor->tasks.empty() && executor->state == Executor::State::kRun); });
             if (executor->state == Executor::State::kStopped ||
-                    (executor->state == Executor::State::kStopping && executor->tasks.empty())) {
+                (executor->state == Executor::State::kStopping && executor->tasks.empty())) {
                 return;
             }
             task = executor->tasks.front();
@@ -32,38 +32,40 @@ Executor::Executor(std::string name, int size) {
     for (int i = 0; i < size; ++i) {
         threads.emplace_back(std::thread(perform, this));
     }
-
 }
 
 void Executor::Stop(bool await) {
     std::cout << "pool: " << __PRETTY_FUNCTION__ << std::endl;
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        if (state == State::kRun && tasks.empty()) {
-            state = State::kStopped;
-        } else if (state == State::kRun && !tasks.empty()) {
-            state = State::kStopping;
-        }
+    std::unique_lock<std::mutex> lock(mutex);
+    if (state == State::kRun){
+        state = State::kStopping;
     }
+
     empty_condition.notify_all();
-    if(await) {
+    if (await) {
+        lock.unlock();
         for (std::thread &thread_ : threads) {
             thread_.join();
         }
+        lock.lock();
+        state = State::kStopped;
     }
 }
 
 Executor::~Executor() {
     std::cout << "pool: " << __PRETTY_FUNCTION__ << std::endl;
     {
-        std::lock_guard<std::mutex> lock(mutex);
-        if(state == State::kRun){
-            state = State::kStopped;
+        std::unique_lock<std::mutex> lock(mutex);
+        if (state == State::kRun) {
+            state = State::kStopping;
         }
+        lock.unlock();
     }
-    empty_condition.notify_all();
-    for (std::thread &thread_ : threads) {
-        thread_.join();
+    if (state == State::kStopping) {
+        empty_condition.notify_all();
+        for (std::thread &thread_ : threads) {
+            thread_.join();
+        }
     }
 }
 
