@@ -38,13 +38,12 @@ void Engine::Restore(context &ctx) {
 void Engine::yield() {
     if (alive) {
         context *next_routine = alive;
-        while (next_routine == cur_routine){
+        while (next_routine == cur_routine && next_routine){
             next_routine = next_routine->next;
         }
-        if(alive == next_routine){
-            alive = alive->next;
+        if(next_routine) {
+            sched(next_routine);
         }
-        sched(next_routine);
     }
 }
 
@@ -60,7 +59,6 @@ void Engine::sched(void *routine_) {
         cur_routine = called;
         Restore(*called);
     } else {
-//        std::cout << "Yield\n";
         yield();
     }
 }
